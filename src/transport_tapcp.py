@@ -93,8 +93,8 @@ class TapcpTransport(Transport):
 
         new_connection_msg = '*** NEW CONNECTION MADE TO {} ***'.format(self.host)
         self.logger.info(new_connection_msg)
-        self.timeout = kwargs.get('timeout', 3)
-        self.server_timeout = 0.1 # Microblaze timeout period. So that if a command fails we can wait for the microblaze to terminate the connection before retrying
+        self.timeout = kwargs.get('timeout', 0.1)
+        self.server_timeout = kwargs.get('server_timeout', 4) # Microblaze timeout period. So that if a command fails we can wait for the microblaze to terminate the connection before retrying
         self.retries = kwargs.get('retries', 8) # These are retries of a complete transaction (each of which has it's ofw TFTP retries).
 
     @staticmethod
@@ -151,7 +151,7 @@ class TapcpTransport(Transport):
     def progdev(self, addr=0):
         # address shifts down because we operate in 32-bit addressing mode
         # see xilinx docs. Todo, fix this microblaze side
-        buf = StringIO(struct.pack('>L', addr >> 8))
+        buf = StringIO(struct.pack('>L', addr))
         try:
             self.t.upload('/progdev', buf, timeout=self.timeout)
         except:
