@@ -168,12 +168,12 @@ class CasperFpga(object):
             if SkarabTransport.test_host_type(host_ip):
                 self.logger.debug('%s seems to be a SKARAB' % host_ip)
                 return SkarabTransport
-            elif KatcpTransport.test_host_type(host_ip):
-                self.logger.debug('%s seems to be ROACH' % host_ip)
-                return KatcpTransport
             elif TapcpTransport.test_host_type(host_ip):
                 self.logger.debug('%s seems to be a TapcpTransport' % host_ip)
                 return TapcpTransport
+            elif KatcpTransport.test_host_type(host_ip):
+                self.logger.debug('%s seems to be ROACH' % host_ip)
+                return KatcpTransport
             else:
                 errmsg = 'Possible that host does not follow one of the \
                             defined casperfpga transport protocols'
