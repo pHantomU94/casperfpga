@@ -79,11 +79,28 @@ class OneHundredGbe(TenGbe):
 
     def _check_memmap_compliance(self):
         """
-        Look at the first word of the core's memory map and try to
-        figure out if it compliant with the harmonized ethernet map.
-        This isn't flawless, but unless the user sets a very weird
-        MAC address for their core (which is what the old core's map
-        stored in register 0, it should be OK).
+        Is this core compliant with the universal Ethernet core memory map?
         """
         # There is no other version of the 100GbE core
         return True
+
+    def post_create_update(self, raw_device_info):
+        """
+        Update the device with information not available at creation.
+
+        :param raw_device_info: info about this block that may be useful.
+            (What a helpful description!)
+        """
+        super(TenGbe, self).post_create_update(raw_device_info)
+        self.snaps = {'tx': [], 'rx': []}
+        snapnames = self.parent.snapshots.names()
+        for txrx in ['r', 't']:
+            snapshot_index=0
+            snapshot_found=True
+            while snapshot_found:
+                name = self.name + '_%sxs%i_ss' %(txrx,snapshot_index)
+                if name in snapnames:
+                    self.snaps['%sx' % txrx].append(self.parent.snapshots[name])
+                    snapshot_index+=1
+                else:
+                    snapshot_found=False
