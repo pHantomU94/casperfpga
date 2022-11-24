@@ -75,6 +75,49 @@ class OneHundredGbe(TenGbe):
         # disable CPU ARP reads
         self.parent.write_int(self.name, 0, word_offset=self.ADDR_ARP_READ_ENABLE//4)
         return list(map(Mac, macs))
+
+    @staticmethod
+    def convert_128_to_64(w128):
+        return [(w128 >> (64-(ctr*64))) & (2 ** 64 - 1) for ctr in range(2)]
+
+    @staticmethod
+    def process_snap_data(d):
+        # convert the 256-bit data to 64-bit data
+        d64 = {k: [] for k in d.keys()}
+        d64['data'] = []
+        for ctr in range(len(d['data_msw'])):
+            d64['data'].extend(OneHundredGbe.convert_128_to_64(d['data_msw'][ctr]))
+            d64['data'].extend(OneHundredGbe.convert_128_to_64(d['data_lsw'][ctr]))
+            for k in d.keys():
+                if k == 'eof':
+                    d64[k].extend([0] * 3)
+                    d64[k].append(d[k][ctr])
+                elif ((k!='data_msw') and (k!='data_lsw') and (k!='data')):
+                    for ctr4 in range(4):
+                        d64[k].append(d[k][ctr])
+        return d64
+
+    def read_txsnap(self):
+        """
+        Read the TX snapshot embedded in this GbE yellow block
+        """
+        d = self.snaps['tx'][0].read()['data']
+        for snap in self.snaps['tx'][1:]:
+            d.update(snap.read(arm=False)['data'])
+        return OneHundredGbe.process_snap_data(d)
+
+    def read_rxsnap(self):
+        """
+        Read the RX snapshot embedded in this GbE yellow block
+        """
+        d = self.snaps['rx'][0].read()['data']
+        for snap in self.snaps['rx'][1:]:
+            d.update(snap.read(arm=False)['data'])
+        for key in ['eof_in', 'valid_in', 'ip_in', ]:
+            if key in d:
+                d[key.replace('_in', '')] = d[key]
+                d.pop(key)
+        return OneHundredGbe.process_snap_data(d)
         
 
     def _check_memmap_compliance(self):
