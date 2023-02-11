@@ -19,7 +19,10 @@ from . import katadc
 from . import skarabadc
 from . import snapadc
 from . import sysmon
+from . import xil_device
+from . import adc_4x16g_asnt
 from .memory import Memory
+from . import rfdc
 
 from .attribute_container import AttributeContainer
 from .utils import parse_fpg, get_hostname, get_kwarg, get_git_info_from_fpg
@@ -27,10 +30,12 @@ from .transport_katcp import KatcpTransport
 from .transport_tapcp import TapcpTransport
 from .transport_skarab import SkarabTransport
 from .transport_dummy import DummyTransport
+from .transport_alveo import AlveoTransport
 from .casper_platform_id_map import PLATFORM_ID
 
 from .CasperLogHandlers import configure_console_logging, configure_file_logging
 from .CasperLogHandlers import getLogger
+
 
 # known CASPER memory-accessible devices and their associated
 # classes and containers
@@ -45,13 +50,19 @@ CASPER_MEMORY_DEVICES = {
     'xps:onegbe':       {'class': onegbe.OneGbe,     'container': 'gbes'},
     'casper:snapshot':  {'class': snap.Snap,         'container': 'snapshots'},
     'xps:hmc':          {'class': hmc.Hmc,           'container': 'hmcs'},
+    'xps:skarab_adc4x3g_14':     {'class': skarabadc.SkarabAdc,  'container': 'adcs'},
+    'xps:skarab_adc4x3g_14_byp': {'class': skarabadc.SkarabAdc,  'container': 'adcs'},
+    'xps:xil_device':   {'class': xil_device.Xil_Device, 'container': 'xil_device'}
 }
 
 CASPER_ADC_DEVICES = {
     'xps:katadc':                   {'class': katadc.KatAdc,        'container': 'adcs'},
     'xps:skarab_adc4x3g_14':        {'class': skarabadc.SkarabAdc,  'container': 'adcs'},
     'xps:skarab_adc4x3g_14_byp':    {'class': skarabadc.SkarabAdc,  'container': 'adcs'},
-    'xps:snap_adc':                 {'class': snapadc.SnapAdc,      'container': 'adcs'}
+    'xps:adc_4x16g_asnt':           {'class': adc_4x16g_asnt.Adc_4X16G_ASNT, 'container': 'adcs'},
+    'xps:snap_adc':                 {'class': snapadc.SnapAdc,      'container': 'adcs'},
+    'xps:snap_adc':                 {'class': snapadc.SnapAdc,      'container': 'adcs'},
+    'xps:rfdc':                     {'class': rfdc.RFDC,            'container': 'adcs'}
 }
 
 # other devices - blocks that aren't memory devices nor ADCs, but about which we'd
@@ -124,12 +135,16 @@ class CasperFpga(object):
         except KeyError:
             self.set_log_level(log_level='ERROR')
 
+        port = get_kwarg('port', kwargs)
+        if not port:
+          port = 7147
+
         # was the transport specified?
         transport = get_kwarg('transport', kwargs)
         if transport:
             self.transport = transport(**kwargs)
         else:
-            transport_class = self.choose_transport(self.host)
+            transport_class = self.choose_transport(self.host, port)
             self.transport = transport_class(**kwargs)
 
         # this is just for code introspection
@@ -164,7 +179,7 @@ class CasperFpga(object):
         self.platform = PLATFORM_ID.get(self._get_platform_id(), None)
         self.transport.platform = self.platform
         
-    def choose_transport(self, host_ip):
+    def choose_transport(self, host_ip, port):
         """
         Test whether a given host is a katcp client or a skarab
 
@@ -175,13 +190,17 @@ class CasperFpga(object):
             return DummyTransport
         try:
             if SkarabTransport.test_host_type(host_ip):
-                self.logger.debug('%s seems to be a SKARAB' % host_ip)
+                self.logger.info('%s seems to be a SKARAB' % host_ip)
                 return SkarabTransport
+            #must test for Alveo transport before Katcp transport (since alveo inherits from katcp)
+            elif AlveoTransport.test_host_type(host_ip, port):
+                self.logger.info('%s:%d seems to be an ALVEO' % (host_ip,port))
+                return AlveoTransport
             elif KatcpTransport.test_host_type(host_ip):
-                self.logger.debug('%s seems to be ROACH' % host_ip)
+                self.logger.info('%s seems to be ROACH' % host_ip)
                 return KatcpTransport
             elif TapcpTransport.test_host_type(host_ip):
-                self.logger.debug('%s seems to be a TapcpTransport' % host_ip)
+                self.logger.info('%s seems to be a TapcpTransport' % host_ip)
                 return TapcpTransport
             else:
                 errmsg = 'Possible that host does not follow one of the \
@@ -349,6 +368,10 @@ class CasperFpga(object):
                 self._detect_little_endianness()
             except:
                 pass
+            
+            return True
+        else:
+            return False
 
     def is_connected(self, **kwargs):
         """
@@ -376,22 +399,8 @@ class CasperFpga(object):
         """
         self.is_little_endian = False
         board_id = self.read_uint('sys_board_id')
-        
-        if (board_id >> 16) == 0xB00B:  # ROACH
-            return self.is_little_endian
-        
-        if (board_id >> 16) == 0xBABE:  # ROACH2
-            return self.is_little_endian
-        
-        if board_id == 0:               # red pitaya
-            self.is_little_endian = True
-            return self.is_little_endian
-        
         msb = (board_id >> 24) & 0xff
-        if msb > 0:
-            self.is_little_endian = True
-            return self.is_little_endian
-        
+        self.is_little_endian = (msb > 0) or (board_id == 0)
         return self.is_little_endian
 
     def _reset_device_info(self):
@@ -669,7 +678,7 @@ class CasperFpga(object):
         :return: None
         """
         for device_name, device_info in list(device_dict.items()):
-            
+
             if device_name == '':
                 raise NameError('There\'s a problem somewhere, got a blank '
                                 'device name?')
@@ -689,12 +698,14 @@ class CasperFpga(object):
 
                 new_device = known_device_class.from_device_info(self,
                                 device_name, device_info, initialise=initialise)
-                
+
                 if new_device.name in list(self.adc_devices.keys()):
                     errmsg = 'Device {} of type {} already exists in \
                              the devices list'.format(new_device.name, type(new_device))
 
                     raise NameError(errmsg)
+
+                #new_device = known_device_class.from_device_info(self, initialize=initialise)
                 
                 self.devices[device_name] = new_device
                 self.adc_devices[device_name] = new_device
@@ -754,10 +765,11 @@ class CasperFpga(object):
                                    - e.g. The SKARAB ADC's PLL SYNC
         :return: <nothing> the information is populated in the class
         """
-        t_filename, t_fpg_info = \
-            self.transport.get_system_information_from_transport()
-        filename = filename or t_filename
-        fpg_info = fpg_info or t_fpg_info
+        if (filename is None):
+            t_filename, t_fpg_info = \
+                self.transport.get_system_information_from_transport()
+            filename = t_filename
+            fpg_info = t_fpg_info
         if (filename is None) and (fpg_info is None):
             raise RuntimeError('Either filename or parsed fpg data '
                                'must be given.')
@@ -797,7 +809,6 @@ class CasperFpga(object):
             self.rcs_info['git'].pop('tag')
         except:
             pass
-
         # Create Register Map
         self.logger.info("Creating memory devices")
         self._create_memory_devices(device_dict, memorymap_dict,

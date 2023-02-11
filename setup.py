@@ -39,7 +39,6 @@ progska_extension = setuptools.Extension(
 
 data_files = ['tengbe_mmap.txt', 'tengbe_mmap_legacy.txt', 'fortygbe_mmap_legacy.txt']
 
-
 setuptools.setup(
     name=NAME,
     description=DESCRIPTION,
@@ -52,14 +51,22 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     # Specify version in-line here
     install_requires=[
+        'IPython',
+        'future',
         'numpy',
-        'katcp>=0.7',
+        'katcp==0.9.1',
+        'katversion',
         'odict',
         'setuptools',
         'tornado',
         'redis',
-        'tftpy==0.8.0',
+        'tftpy',
+        'progressbar2',
+        'requests',
+        'circus',
+        'crcmod'
     ],
+    extras_require = {'test': ['pytest', 'pytest-datadir']},
     packages=['casperfpga', 'casperfpga.debug', 'casperfpga.progska'],
     package_dir={'casperfpga': 'src', 'casperfpga.debug': 'debug', 'casperfpga.progska': 'progska'},
     package_data={'casperfpga': data_files},
@@ -71,7 +78,7 @@ setuptools.setup(
     keywords='casper ska meerkat fpga',
     classifiers=[
         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.8',
         'Operating System :: OS Independent',
 	    'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Scientific/Engineering :: Astronomy',
