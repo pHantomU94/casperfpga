@@ -6,6 +6,7 @@ from .memory import Memory
 
 LOGGER = logging.getLogger(__name__)
 
+_MAX_BITS = 128 # maximum struct-supported bits
 
 class Sbram(Memory):
     """
@@ -17,9 +18,15 @@ class Sbram(Memory):
                                     address=address, length_bytes=length_bytes)
         self.parent = parent
         self.block_info = device_info
-        self.unpack_struct = '>%i%s' % (
-            self.length_in_words(),
-            {8: 'B', 16: 'H', 32: 'I', 64: 'L', 128: 'Q'}[width_bits])
+        if width_bits <= _MAX_BITS:
+            self._merge_words = 1
+            self.unpack_struct = '>%i%s' % (
+                self.length_in_words(),
+                {8: 'B', 16: 'H', 32: 'I', 64: 'L', 128: 'Q'}[width_bits])
+        else:
+            self._merge_words = width_bits // _MAX_BITS
+            self.unpack_struct = '>%i%s' % (
+                self.length_in_words() * self._merge_words, 'Q')
         LOGGER.debug('New Sbram %s' % self.__str__())
 
     @classmethod
@@ -56,7 +63,21 @@ class Sbram(Memory):
         :param rawdata:
         :return:
         """
-        return struct.unpack(self.unpack_struct, rawdata)
+        if self._merge_words == 1:
+            return struct.unpack(self.unpack_struct, rawdata)
+        else:
+            unpacked = struct.unpack(self.unpack_struct, rawdata)
+            out = []
+            temp = 0
+            shift = self._merge_words - 1
+            for i in range(len(unpacked)):
+                temp += (unpacked[i] << (_MAX_BITS * shift))
+                shift -= 1
+                if shift < 0:
+                    shift = self._merge_words - 1
+                    out += [temp]
+                    temp = 0
+            return out
 
     def read_raw(self, **kwargs):
         """
