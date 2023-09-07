@@ -115,4 +115,11 @@ class LocalMemTransport(Transport):
         assert (offset % 4 == 0), 'Must write 32-bit-bounded words'
 
         addr = self._get_device_address(device_name) + offset
-        self.axil_mm[addr : addr + size] = data
+        # Write in 4096 byte chunks. Why do i get errors with larger writes?
+        written = 0
+        block_size = 4096
+        for i in range(size//block_size + 1):
+            n_bytes = min(size - written, block_size)
+            if n_bytes > 0:
+                self.axil_mm[addr + written : addr + written + n_bytes] = data[written : written + n_bytes]
+            written += n_bytes
