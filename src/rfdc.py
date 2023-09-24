@@ -192,7 +192,6 @@ class RFDC(object):
     fine_freq = None
     for inform in informs:
         a = inform.arguments[0].decode()
-        print(a)
         if a.startswith('mode:'):
             mixer_mode = a.split(' ')[1].strip(',')
         if a.startswith('fine freq:'):
