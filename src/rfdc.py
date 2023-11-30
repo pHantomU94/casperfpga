@@ -43,7 +43,6 @@ class RFDC(object):
   COMMON_STATUS_REG = 0x228
   TILE_DISABLE_REG = 0x230
 
-<<<<<<< HEAD
   """
   Mixer identifiers
   """
@@ -68,7 +67,7 @@ class RFDC(object):
           '-fs/4': COARSE_MIX_MIN_SAMPLE_FREQ_BY_FOUR,
           'bypass': COARSE_MIX_BYPASS,
           }
-=======
+
   class tile(object):
     pass
 
@@ -89,8 +88,6 @@ class RFDC(object):
     :return:
     """
     return cls(parent, device_name, device_info, initialise, **kwargs)
-
->>>>>>> mb/rfsocs/rfdc-dsa-vop
 
   def __init__(self, parent, device_name, device_info, initialise=False):
     self.parent = parent
@@ -167,7 +164,6 @@ class RFDC(object):
 
     return True
 
-<<<<<<< HEAD
   def get_mixer_status(self, dev='adc', tile=0, block=0):
     """
     Get the current mixer settings for a device.
@@ -203,8 +199,6 @@ class RFDC(object):
             coarse_freq = self.COARSE_MIX_I2S[int(a.split(' ')[-1])]
 
     return mixer_mode, coarse_freq, fine_freq
-=======
->>>>>>> mb/rfsocs/rfdc-dsa-vop
 
   def apply_dto(self, dtbofile):
     """
