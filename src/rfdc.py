@@ -95,6 +95,30 @@ class RFDC(object):
   # image rection filter
   IMR_LOWPASS = 0
   IMR_HIGHPASS = 1
+  """
+  Mixer identifiers
+  """
+
+  COARSE_MIX_OFF = 0x0
+  COARSE_MIX_SAMPLE_FREQ_BY_TWO = 0x2
+  COARSE_MIX_SAMPLE_FREQ_BY_FOUR = 0x4
+  COARSE_MIX_MIN_SAMPLE_FREQ_BY_FOUR = 0x8
+  COARSE_MIX_BYPASS = 0x10
+  COARSE_MIX_I2S = {
+          COARSE_MIX_OFF: 'off',
+          COARSE_MIX_SAMPLE_FREQ_BY_TWO: 'fs/2',
+          COARSE_MIX_SAMPLE_FREQ_BY_FOUR: 'fs/4',
+          COARSE_MIX_MIN_SAMPLE_FREQ_BY_FOUR: '-fs/4',
+          COARSE_MIX_BYPASS: 'bypass',
+          }
+
+  COARSE_MIX_S2I = {
+          'off': COARSE_MIX_OFF,
+          'fs/2': COARSE_MIX_SAMPLE_FREQ_BY_TWO,
+          'fs/4': COARSE_MIX_SAMPLE_FREQ_BY_FOUR,
+          '-fs/4': COARSE_MIX_MIN_SAMPLE_FREQ_BY_FOUR,
+          'bypass': COARSE_MIX_BYPASS,
+          }
 
   class tile(object):
     pass
@@ -116,7 +140,6 @@ class RFDC(object):
     :return:
     """
     return cls(parent, device_name, device_info, initialise, **kwargs)
-
 
   def __init__(self, parent, device_name, device_info, initialise=False):
     self.parent = parent
@@ -193,6 +216,41 @@ class RFDC(object):
 
     return True
 
+  def get_mixer_status(self, dev='adc', tile=0, block=0):
+    """
+    Get the current mixer settings for a device.
+
+    Args:
+      dev (str, optional): Type of device to interrogate. 'adc' or 'dac'
+      tile (int, optional): Zero-indexed tile ID of device to interrogate.
+      block (int, optional): Zero-indexed block ID of device to interrogate.
+
+    Returns:
+      mixer_mode, coarse_freq, fine_freq_mhz
+
+      mixer_mode (str): Mixer type. 'r2r', 'c2r', 'c2c', 'r2c'.
+        Respectively: Real-to-real, Complex-to-real, Complex-to-complex, Real-to-complex.
+      coarse_freq (str): Coarse mixer frequency. 'off', 'fs_4', '-fs_4', 'fs_2', 'bypass',
+        Respectively 0, fs/4, -fs/4, fs/2 or bypass.
+      fine_freq_mhz (float): Fine mixer frequency, in MHz.
+    """
+    assert dev in ['adc', 'dac'], 'Device type %s is unknown!' % dev
+    args = (tile, block, dev)
+    t = self.parent.transport
+    reply, informs = t.katcprequest(name='rfdc-report-mixer', request_timeout=t._timeout, request_args=args)
+    mixer_mode = None
+    coarse_freq = None
+    fine_freq = None
+    for inform in informs:
+        a = inform.arguments[0].decode()
+        if a.startswith('mode:'):
+            mixer_mode = a.split(' ')[1].strip(',')
+        if a.startswith('fine freq:'):
+            fine_freq = float(a.split(' ')[-1])
+        if a.startswith('coarse freq:'):
+            coarse_freq = self.COARSE_MIX_I2S[int(a.split(' ')[-1])]
+
+    return mixer_mode, coarse_freq, fine_freq
 
   def apply_dto(self, dtbofile):
     """
