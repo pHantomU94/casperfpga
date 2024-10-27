@@ -1054,4 +1054,4 @@ class SnapAdc(object):
         #return cls(parent, device_name, device_info, initialize, **kwargs)
         # XXX should device_info be passed as kwargs to cls? Would require renaming
         # some parameters, so am not for now.
-        return cls(host)
+        return cls(host, device_name, device_info)
