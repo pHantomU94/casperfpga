@@ -10,7 +10,8 @@ from mmap import mmap, PROT_READ, PROT_WRITE, MAP_SHARED
 
 MEM_DEV = '/dev/mem'
 # Size of AXI-lite memory to map
-MAP_SIZE = 0x100000000 # 4GB
+MAP_SIZE = 8 * 1024 * 1024 # 8MB
+AXIL_OFFSET = 0xA0000000
 
 from .transport import Transport
 from .utils import parse_fpg
@@ -47,7 +48,7 @@ class LocalMemTransport(Transport):
         new_connection_msg = '*** NEW CONNECTION MADE TO {} ***'.format(self.host)
         self.logger.debug(new_connection_msg)
         self.fd = os.open(self._mem_dev, os.O_RDWR | os.O_SYNC)
-        self.axil_mm = mmap(self.fd, MAP_SIZE, flags=MAP_SHARED, prot=PROT_READ | PROT_WRITE)
+        self.axil_mm = mmap(self.fd, MAP_SIZE, offset=AXIL_OFFSET, flags=MAP_SHARED, prot=PROT_READ | PROT_WRITE)
 
     def __del__(self):
         self.axil_mm.close()
@@ -82,7 +83,7 @@ class LocalMemTransport(Transport):
     def _get_device_address(self, device_name):
         # map device name to address, if can't find, bail
         if self.memory_devices and (device_name in self.memory_devices):
-            return self.memory_devices[device_name].address
+            return self.memory_devices[device_name].address - AXIL_OFFSET
         errmsg = 'Could not find device: %s' % device_name
         self.logger.error(errmsg)
         raise ValueError(errmsg)
@@ -115,11 +116,4 @@ class LocalMemTransport(Transport):
         assert (offset % 4 == 0), 'Must write 32-bit-bounded words'
 
         addr = self._get_device_address(device_name) + offset
-        # Write in 4096 byte chunks. Why do i get errors with larger writes?
-        written = 0
-        block_size = 4096
-        for i in range(size//block_size + 1):
-            n_bytes = min(size - written, block_size)
-            if n_bytes > 0:
-                self.axil_mm[addr + written : addr + written + n_bytes] = data[written : written + n_bytes]
-            written += n_bytes
+        self.axil_mm[addr : addr + size] = data
