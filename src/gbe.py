@@ -88,6 +88,13 @@ class Gbe(object):
         """
         if device_info is None:
             return
+        # backwards compatibility
+        if 'fab_ip' not in device_info:
+            device_info['fab_ip'] = device_info['local_ip']
+        if 'fab_mac' not in device_info:
+            device_info['fab_mac'] = device_info['local_mac']
+        if 'fab_udp' not in device_info:
+            device_info['fab_udp'] = device_info['local_port']
         fabric_ip = device_info['fab_ip']
         if fabric_ip.find('(2^24) + ') != -1:
             device_info['fab_ip'] = (fabric_ip.replace('*(2^24) + ', '.')

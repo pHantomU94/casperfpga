@@ -115,7 +115,7 @@ class OneGbe(Memory, Gbe):
         """
         x = self.parent.read(self.name, 4)
         cpu_tx_en, cpu_rx_en, rev, core_type = struct.unpack('4B', x)
-        if (cpu_tx_en > 1) or (cpu_rx_en > 1) or (core_type != 2):
+        if (cpu_tx_en > 1) or (cpu_rx_en > 1) or (core_type != 1):
             return False
         else:
             return True
@@ -126,7 +126,7 @@ class OneGbe(Memory, Gbe):
 
         :param raw_device_info: info about this block that may be useful
         """
-        super(TenGbe, self).post_create_update(raw_device_info)
+        super(OneGbe, self).post_create_update(raw_device_info)
         self.snaps = {'tx': None, 'rx': None}
         for snapshot in self.parent.snapshots:
             if snapshot.name.find(self.name + '_') == 0:
