@@ -2,6 +2,7 @@ import logging
 import katcp
 import os
 import random
+from enum import Enum, auto
 
 LOGGER = logging.getLogger(__name__)
 
@@ -149,6 +150,72 @@ class RFDC(object):
           'bypass': COARSE_MIX_BYPASS,
           }
 
+  # adc threshold settings
+  UPDATE_THRESHOLD0 = 1
+  UPDATE_THRESHOLD1 = 2
+  UPDATE_THRESHOLD_BOTH = 4
+
+  THRESHOLD_OFF = 0
+  THRESHOLD_STICKY_OVER = 1
+  THRESHOLD_STICKY_UNDER = 2
+  THRESHOLD_HYSTERISIS = 3
+
+  THRESHOLD_CLR_MANUAL = 1
+  THRESHOLD_CLR_AUTO = 2
+
+  # interrupt masks
+  class InterruptMasks(Enum):
+    """
+    adc and dac datapath interrupt indicating one of the datapath interrupts is active.
+    To clear, all datapath sub-interrupts must be cleared
+    """
+    IXR_FIFOUSRDAT_MASK = 0x0000000F
+    IXR_FIFOUSRDAT_OF_MASK = 0x00000001
+    IXR_FIFOUSRDAT_UF_MASK = 0x00000002
+    IXR_FIFOMRGNIND_OF_MASK = 0x00000004
+    IXR_FIFOMRGNIND_UF_MASK = 0x00000008
+    ADC_IXR_DATAPATH_MASK = 0x00000FF0
+    ADC_IXR_DMON_STG_MASK = 0x000003F0
+    DAC_IXR_DATAPATH_MASK = 0x00001FF0
+    DAC_IXR_INTP_STG_MASK = 0x000003F0
+    DAC_IXR_INTP_I_STG0_MASK = 0x00000010
+    DAC_IXR_INTP_I_STG1_MASK = 0x00000020
+    DAC_IXR_INTP_I_STG2_MASK = 0x00000040
+    DAC_IXR_INTP_Q_STG0_MASK = 0x00000080
+    DAC_IXR_INTP_Q_STG1_MASK = 0x00000100
+    DAC_IXR_INTP_Q_STG2_MASK = 0x00000200
+    ADC_IXR_DMON_I_STG0_MASK = 0x00000010
+    ADC_IXR_DMON_I_STG1_MASK = 0x00000020
+    ADC_IXR_DMON_I_STG2_MASK = 0x00000040
+    ADC_IXR_DMON_Q_STG0_MASK = 0x00000080
+    ADC_IXR_DMON_Q_STG1_MASK = 0x00000100
+    ADC_IXR_DMON_Q_STG2_MASK = 0x00000200
+    IXR_QMC_GAIN_PHASE_MASK = 0x00000400
+    IXR_QMC_OFFST_MASK = 0x00000800
+    DAC_IXR_INVSNC_OF_MASK = 0x00001000
+    SUBADC_IXR_DCDR_MASK = 0x00FF0000
+    SUBADC0_IXR_DCDR_OF_MASK = 0x00010000
+    SUBADC0_IXR_DCDR_UF_MASK = 0x00020000
+    SUBADC1_IXR_DCDR_OF_MASK = 0x00040000
+    SUBADC1_IXR_DCDR_UF_MASK = 0x00080000
+    SUBADC2_IXR_DCDR_OF_MASK = 0x00100000
+    SUBADC2_IXR_DCDR_UF_MASK = 0x00200000
+    SUBADC3_IXR_DCDR_OF_MASK = 0x00400000
+    SUBADC3_IXR_DCDR_UF_MASK = 0x00800000
+    ADC_OVR_VOLTAGE_MASK = 0x04000000
+    ADC_OVR_RANGE_MASK = 0x08000000
+    ADC_DAT_OVR_MASK = 0x40000000
+    ADC_FIFO_OVR_MASK = 0x80000000
+    ADC_CMODE_OVR_MASK = 0x10000000 # (Gen 3)
+    ADC_CMODE_UNDR_MASK = 0x20000000 # (Gen 3)
+
+  def parse_interrupt_mask(self, interrupt_mask):
+    interrupt_status = {}
+    for interrupt in self.InterruptMasks:
+      interrupt_status[interrupt.name] = bool(interrupt_mask & interrupt.value)
+
+    return interrupt_status
+
   class tile(object):
     pass
 
@@ -180,7 +247,7 @@ class RFDC(object):
     """
     apply the dtbo for the rfdc driver
 
-    ideally, this would be incorporated as part of an extended `fpg` implementation that includes the device tree overlwy by including the
+    ideally, this would be incorporated as part of an extended `fpg` implementation that includes the device tree overlay by including the
     dtbo as part of the programming process. The rfdc is the only block that is using the dto at the moment, so instead of completely
     implement this extended fpg functionality the rfdc instead manages its own application of the dto.
     """
@@ -828,7 +895,7 @@ class RFDC(object):
     >>>> rfdc.set_coarse_delay(0, 0, rfdc.ADC_TILE, 12, rfdc.EVNT_SRC_TILE)
     {'CoarseDelay': 12, 'EventSource': 2}
     # trigger update event to apply
-    rfdc.update_event(0, 0, rfdc.EVENT_COARSE_DELAY)
+    rfdc.update_event(0, 0, rfdc.ADC_TILE, rfdc.EVENT_COARSE_DLY)
     """
     t = self.parent.transport
 
@@ -1832,14 +1899,15 @@ class RFDC(object):
       return int(imr_mode)
 
 
-  def run_mts(self, tile_mask=15, target_latency=None):
+  def run_mts(self, converter_type, tile_mask=15, target_latency=-1):
     """
-    Execute multi-tile synchronization (MTS) to synchronize ADC tiles set by "tile_mask".
-    Optionally request to synch with latency specified by "target_latency".
+    Execute multi-tile synchronization (MTS) to synchronize ADC or DAC tiles set by "tile_mask".
+    Optionally request to a target latency specified by "target_latency".
 
-    :param mask: Bitmask for selecting which tiles to sync, defaults to all tiles 0x1111 = 15. LSB is ADC Tile 0.
+    :param converter_type: Represents the target converter type, "adc" or "dac"
+    :type converter_type: str
+    :param mask: Bitmask for selecting which tiles to sync, defaults to all tiles 0x1111 = 15. LSB is ADC/DAC Tile 0.
     :type mask: int
-
     :param target_latency: Requested target latency
     :type target_latency: int
 
@@ -1849,31 +1917,70 @@ class RFDC(object):
     :raises KatcpRequestFail: If KatcpTransport encounters an error
     """
 
-    if target_latency is not None:
-      print("WARN: 'target_latency' not yet implemented, this argument is ignored")
-
     t = self.parent.transport
-    self.mts_report = []
-    args = (tile_mask,)
+    args = ("adc" if converter_type == self.ADC_TILE  else "dac",tile_mask,target_latency)
     reply, informs = t.katcprequest(name='rfdc-run-mts', request_timeout=t._timeout, request_args=args)
-    for i in informs:
-      self.mts_report.append(i)
 
     return True
 
+  def get_mts_latency(self, converter_type, ntile):
+    """
+    Get the adc or dac mts latency for enabled tile "ntile" and block index "nblk". If a tile/block pair is
+    disabled or, no mts information is available, an empty dictionary is returned and nothing is done.
 
-  def get_mts_report(self):
+    :param converter_type: Represents the target converter type, "adc" or "dac"
+    :type converter_type: str
+    :param ntile: Tile index of target adc tile to get mts latency, in the range (0-3)
+    :type ntile: int
+
+    :return: Dictionary with mts latency, empty dictionary if tile/block is disabled
+    :rtype: dict[str, int]
+
+    :raises KatcpRequestFail: If KatcpTransport encounters an error
+
+    Examples
+    ----------
+    # get the mts latency for ADC 00
+    >>>> ntile=0
+    >>>> rfdc.get_mts_latency(rfdc.ADC_TILE, ntile)
+    {'Latency': 160, 'DelayOffset': 2, 'DecFactor': 4}
+    """
+    t = self.parent.transport
+
+    args = ("adc" if converter_type == self.ADC_TILE  else "dac",ntile)
+    reply, informs = t.katcprequest(name='rfdc-mts-tile-latency', request_timeout=t._timeout, request_args=args)
+
+    mts_latency = {}
+    info = informs[0].arguments[0].decode().split(', ')
+    if len(info) == 1: # (disabled) response
+      return mts_latency
+
+    for stat in info:
+      k,v = stat.split(' ')
+      mts_latency[k] = v
+
+    return mts_latency
+
+
+  def mts_debug_info(self, converter_type):
     """
     Prints a detailed report of the most recent multi-tile synchronization run. Including information
     such as latency on each tile, delay maker, delay bit.
+
+    :param converter_type: Represents the target converter type, "adc" or "dac"
+    :type converter_type: str
 
     :return: `True` if completes successfuly, `False` otherwise
     :rtype: bool
 
     :raises KatcpRequestFail: If KatcpTransport encounters an error
     """
-    for m in self.mts_report:
-      print(m)
+    t = self.parent.transport
+    args = ("adc" if converter_type == self.ADC_TILE  else "dac",)
+    reply, informs = t.katcprequest(name='rfdc-mts-debug-info', request_timeout=t._timeout, request_args=args)
+
+    for i in informs:
+      print(i)
 
     return True
 
@@ -1902,32 +2009,6 @@ class RFDC(object):
     for i in informs:
       print(i)
     return True
-
-    """
-    Set the inverse sinc filter mode; 0 - disabled, 1 - first nyquist, and for gen 3 devices 2 - second nyquist.
-
-    :param ntile: Tile index of where target converter block is, in the range (0-3)
-    :type ntile: int
-    :param nblk: Block index within target converter tile, in the range (0-3)
-    :type nblk: int
-    :param invsinc_fir_mode: inverse sinc filter mode; 0 - disabled, 1 - first nyquist, and for gen 3 devices 2 - second nyquist.
-
-    :type invsinc_fir_mode: int
-
-    :return: 0 if disabled, 1 if first nyquist, and 2 for second nyquist (gen 3 devices only). Returns None if converter is disabled.
-    :rtype: int
-
-    Examples
-    ----------
-    >>>> rfdc.set_invsinc_fir(0,0,rfdc.INVSINC_FIR_DISABLED)
-    0 # disabled
-
-    >>>> rfdc.set_invsinc_fir(0,0,rfdc.INVSINC_FIR_NYQUIST1)
-    1 # nyquist zone 1
-
-    >>>> rfdc.set_invsinc_fir(0,0,rfdc.INVSINC_FIR_NYQUIST2)
-    2 # nyquist zone 2
-    """
 
 
   def set_mixer_mode(self, ntile, nblk, converter_type, mixer_mode, force=1):
@@ -2167,9 +2248,212 @@ class RFDC(object):
 
     return mixer_config
 
-  def get_adc_snapshot(self, ntile, nblk):
+  def get_adc_threshold(self, ntile, nblk):
     """
-    """
-    raise NotImplemented()
+    Get the threshold settings for target ADC
 
+    :param ntile: Tile index of where target converter block is, in the range (0-3)
+    :type ntile: int
+    :param nblk: Block index within target converter tile, in the range (0-3)
+    :type nlblk: int
+
+    :return: dict[str, int] of threshold settings, otherwise None if target converter is disabled
+
+    Examples
+    ---------
+    >>>> rfdc.set_adc_thresh(0, 0, rfdc.UPDATE_THRESHOLD_BOTH, rfdc.THRESHOLD_STICKY_UNDER, rfdc.THRESHOLD_STICKY_OVER, 8, 8, 1000, 1000, 12000, 12000)
+    >>>>  {'UpdateThreshold': 4,
+           'ThresholdMode0': 2,
+           'ThresholdMode1': 1,
+           'ThresholdAvgVal0': 8,
+           'ThresholdAvgVal1': 8,
+           'ThresholdUnderVal0': 1000,
+           'ThresholdUnderVal1': 1000,
+           'ThresholdOverVal0': 12000,
+           'ThresholdOverVal1': 12000}
+    """
+    t = self.parent.transport
+
+    args = (ntile, nblk)
+    reply, informs = t.katcprequest(name='rfdc-get-adc-thresh', request_timeout=t._timeout, request_args=args)
+
+    thresh_config = {}
+    info = informs[0].arguments[0].decode().split(', ')
+    if len(info) == 1: # (disabled) response
+      return thresh_config
+
+    for stat in info:
+      k,v = stat.split(' ')
+      thresh_config[k] = int(v)
+
+    return thresh_config
+
+
+  def set_adc_threshold(self, ntile, nblk, threshold_to_update, threshold0_mode, threshold1_mode, threshold0_avg_val, threshold1_avg_val,
+          threshold0_under_val, threshold1_under_val, threshold0_over_val, threshold1_over_val):
+    """
+    Configure threshold settings for target ADC
+
+    Threshold update constants are: UPDATE_THRESHOLD0 (1), UPDATE_THRESHOLD1 (2), UPDATE_THRESHOLD_BOTH (4)
+    Threshold mode constants are: THRESHOLD_OFF (0), THRESHOLD_STICKY_UNDER (1), THRESHOLD_STICKY_OVER (2), THRESHOLD_HYSTERISIS (3)
+
+    :param ntile: Tile index of where target converter block is, in the range (0-3)
+    :type ntile: int
+    :param nblk: Block index within target converter tile, in the range (0-3)
+    :type nlblk: int
+    :param threshold_to_update: Update settings for Threshold0, Threshold1, or both simultaneously
+    :type threshold_to_update: int
+    :param threshold0_mode: The operating mode for Threshold0, {0 Off, sticky-over, sicky-under, hysteresis}
+    :type threshold0_mode: int
+    :param threshold1_mode: The operating mode for Threshold0, {Off, sticky-over, sicky-under, hysteresis}
+    :type threshold1_mode: int
+    :param threshold0_avg_val: Delay value before asserting Threshold0
+    :type threshold0_avg_val: int
+    :param thresdhol1_avg_val: Delay value before asserting Threshold1
+    :type threshold1_avg_val: int
+    :param threshold0_under_val: The under "lower" value to use on Threshold0
+    :type threshold0_under_val: int
+    :param threshold1_under_val: The under "lower" value to use on Threshold1
+    :type threshold1_under_val: int
+    :param threshold0_over_val: The over "upper" value to use on Threshold0
+    :type threshold0_over_val: int
+    :param threshold1_over_val: The over "upper" value to use on Threshold1
+    :type threshold1_over_val: int
+
+    :return: dict[str, int] of threshold settings, otherwise None if target converter is disabled
+
+    Examples
+    ---------
+    >>>> rfdc.set_adc_thresh(0, 0, rfdc.UPDATE_THRESHOLD_BOTH, rfdc.THRESHOLD_STICKY_UNDER, rfdc.THRESHOLD_STICKY_OVER, 8, 8, 1000, 1000, 12000, 12000)
+    >>>>  {'UpdateThreshold': 4,
+           'ThresholdMode0': 2,
+           'ThresholdMode1': 1,
+           'ThresholdAvgVal0': 8,
+           'ThresholdAvgVal1': 8,
+           'ThresholdUnderVal0': 1000,
+           'ThresholdUnderVal1': 1000,
+           'ThresholdOverVal0': 12000,
+           'ThresholdOverVal1': 12000}
+    """
+    t = self.parent.transport
+    args = (ntile, nblk, threshold_to_update, threshold0_mode, threshold1_mode,
+              threshold0_avg_val,   threshold1_avg_val,
+              threshold0_under_val, threshold1_under_val,
+              threshold0_over_val, threshold1_over_val)
+    reply, informs = t.katcprequest(name='rfdc-set-adc-thresh', request_timeout=t._timeout, request_args=args)
+
+    thresh_config = {}
+    info = informs[0].arguments[0].decode().split(', ')
+    if len(info) == 1: # (disabled) response
+      return thresh_config
+
+    for stat in info:
+      k,v = stat.split(' ')
+      thresh_config[k] = int(v)
+
+    return thresh_config
+
+
+  def set_thresh_clr_mode(self, ntile, nblk, threshold_to_update, clr_mode):
+    """
+    Configure threshold flag to be cleared manually with `thresh_sticky_clr` or with a QMC gain update for target ADC.
+    The default mode for an enabled threshold is to be cleared manually. Thereshold clear modes are integer values:
+    rfdc.THRESHOLD_CLR_MANUAL=1, rfdc.THRESHOLD_CLR_AUTO=2.
+
+    :param ntile: Tile index of where target converter block is, in the range (0-3)
+    :type ntile: int
+    :param nblk: Block index within target converter tile, in the range (0-3)
+    :type nblk: int
+    :param threshold_to_update: Update settings for Threshold0, Threshold1, or both simultaneously
+    :type threshold_to_update: int
+    :param clr_mode: The clear mode to be used
+    :type clr_mode: int
+
+    :return: None
+
+    Examples
+    _________
+    >>>> rfdc.set_thresh_clr_mode(0, 0, rfdc.UPDATE_THRESHOLD_BOTH, rfdc.THRESHOLD_CLR_MANUAL)
+    """
+    t = self.parent.transport
+    args = (ntile, nblk, threshold_to_update, clr_mode)
+    reply, informs = t.katcprequest(name='rfdc-set-thresh-clrmode', request_timeout=t._timeout, request_args=args)
+
+
+  def thresh_sticky_clr(self, ntile, nblk, threshold_to_update):
+    """
+    Clears sticky threshold flags for target ADC with threshold flag clear mode `THRESHOLD_CLR_MANUAL`.
+
+    :param ntile: Tile index of where target converter block is, in the range (0-3)
+    :type ntile: int
+    :param nblk: Block index within target converter tile, in the range (0-3)
+    :type nblk: int
+    :param threshold_to_update: Update settings for Threshold0, Threshold1, or both simultaneously
+    :type threshold_to_update: int
+    :param clr_mode: The clear mode to be used
+    :type clr_mode: int
+
+    :return: None
+
+    Examples
+    _________
+    >>>> rfdc.thresh_sticky_clr(0, 0, rfdc.UPDATE_THRESHOLD_BOTH)
+    """
+    t = self.parent.transport
+    args = (ntile, nblk, threshold_to_update)
+    reply, informs = t.katcprequest(name='rfdc-thresh-stickyclr', request_timeout=t._timeout, request_args=args)
+
+  def get_en_intr(self, ntile, nblk, converter_type):
+    """
+    """
+    t = self.parent.transport
+
+    args = (ntile, nblk, "adc" if converter_type == self.ADC_TILE  else "dac")
+    reply, informs = t.katcprequest(name='rfdc-get-en-intr', request_timeout=t._timeout, request_args=args)
+
+    enabled_intr = {}
+    info = informs[0].arguments[0].decode().split(' ')
+    print(info)
+    if len(info) == 1: # (disabled) response
+      return intr_status
+    else:
+      mask = int(info[1])
+
+    return self.parse_interrupt_mask(mask)
+
+  def set_en_intr(self, ntile, nblk, converter_type, interrupt_mask):
+    """
+    """
+    t = self.parent.transport
+
+    args = (ntile, nblk, "adc" if converter_type == self.ADC_TILE  else "dac", interrupt_mask)
+    reply, informs = t.katcprequest(name='rfdc-set-en-intr', request_timeout=t._timeout, request_args=args)
+
+    enabled_intr = {}
+    info = informs[0].arguments[0].decode().split(' ')
+    print(info)
+    if len(info) == 1: # (disabled) response
+      return intr_status
+    else:
+      mask = int(info[1])
+
+    return self.parse_interrupt_mask(mask)
+
+  def get_intr_status(self, ntile, nblk, converter_type):
+    """
+    """
+    t = self.parent.transport
+
+    args = (ntile, nblk, "adc" if converter_type == self.ADC_TILE  else "dac")
+    reply, informs = t.katcprequest(name='rfdc-get-intr-status', request_timeout=t._timeout, request_args=args)
+
+    intr_status = {}
+    info = informs[0].arguments[0].decode().split(' ')
+    print(info)
+    if len(info) == 1: # (disabled) response
+      return intr_status
+    else:
+      mask = int(info[1])
+
+    return self.parse_interrupt_mask(mask)
 
