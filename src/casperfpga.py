@@ -174,7 +174,8 @@ class CasperFpga(object):
         # definitely fail until an fpg file is supplied.
         if not isinstance(self.transport, LocalMemTransport):
             try:
-                self._detect_little_endianness()
+                if self.is_running():
+                    self._detect_little_endianness()
             except:
                 pass
 
