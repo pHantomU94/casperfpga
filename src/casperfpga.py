@@ -5,6 +5,7 @@ import socket
 from time import strptime
 import string
 from collections.abc import Callable
+import numpy as np
 
 from . import register
 from . import sbram
@@ -281,13 +282,9 @@ class CasperFpga(object):
         """
         data = self.transport.read(device_name, size, offset, **kwargs)
         if self.is_little_endian:
-            assert ((len(data) % 4) == 0), \
+            assert (size % 4 == 0), \
                 "Can only read multiples of 4 bytes because CasperFpga is doing an endianness flip"
-            # iterate through 32-bit words and flip them
-            data_byte_swapped = b""
-            for i in range(0, len(data), 4):
-                data_byte_swapped += data[i:i+4][::-1]
-            return data_byte_swapped
+            return np.frombuffer(data, dtype='<u4').byteswap().tobytes()
         return data
 
     def blindwrite(self, device_name, data, offset=0, **kwargs):
@@ -295,9 +292,7 @@ class CasperFpga(object):
             assert ((len(data) % 4) == 0), \
                 "Can only write multiples of 4 bytes because CasperFpga is doing an endianness flip"
             # iterate through 32-bit words and flip them
-            data_byte_swapped = b""
-            for i in range(0, len(data), 4):
-                data_byte_swapped += data[i:i+4][::-1]
+            data_byte_swapped = np.frombuffer(data, dtype='<u4').byteswap().tobytes()
             return self.transport.blindwrite(device_name, data_byte_swapped, offset, **kwargs)
         return self.transport.blindwrite(device_name, data, offset, **kwargs)
 
