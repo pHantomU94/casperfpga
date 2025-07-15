@@ -31,6 +31,7 @@ from .transport_tapcp import TapcpTransport
 from .transport_skarab import SkarabTransport
 from .transport_dummy import DummyTransport
 from .transport_alveo import AlveoTransport
+from .transport_localmem import LocalMemTransport
 from .casper_platform_id_map import PLATFORM_ID
 
 from .CasperLogHandlers import configure_console_logging, configure_file_logging
@@ -169,10 +170,13 @@ class CasperFpga(object):
         # For now, detect this board so that an endianness flip can be
         # inserted between the CasperFpga and the underlying transport layer.
         # We try detection again after programming, in case this fails here.
-        try:
-            self._detect_little_endianness()
-        except:
-            pass
+        # Don't detect if this is a LocalMem transport, because it will
+        # definitely fail until an fpg file is supplied.
+        if not isinstance(self.transport, LocalMemTransport):
+            try:
+                self._detect_little_endianness()
+            except:
+                pass
 
         # Store board ID as it may be used to make
         # comms decisions
