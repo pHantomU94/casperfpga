@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "casperfpga"
+version = "0.2.0"
+description = "Talk to CASPER hardware devices"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "GNU GPLv2" }
+authors = [
+    { name = "Tyrone van Balla", email = "tvanballa@ska.ac.za" }
+]
+keywords = ["casper", "ska", "meerkat", "fpga"]
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+    "Programming Language :: Python :: 3.8",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+dependencies = [
+    "IPython",
+    "future",
+    "numpy",
+    "katcp==0.9.3",
+    "odict",
+    "setuptools",
+    "redis",
+    "tftpy",
+    "progressbar2",
+    "requests",
+    "crcmod"
+]
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-datadir"]
+
+[project.urls]
+Homepage = "https://github.com/casper-astro/casperfpga"
+Download = "https://pypi.org/project/casperfpga"
+
+[tool.setuptools]
+packages = [
+    "casperfpga",
+    "casperfpga.debug",
+    "casperfpga.progska",
+]
+
+[tool.setuptools.package-dir]
+"casperfpga" = "src"
+"casperfpga.debug" = "debug"
+"casperfpga.progska" = "progska"
+
+[tool.setuptools.package-data]
+casperfpga = ["tengbe_mmap.txt", "tengbe_mmap_legacy.txt", "fortygbe_mmap_legacy.txt"]
+
+#[tool.setuptools.scripts]
+## Equivalent to scripts=glob.glob('scripts/*')
+## setuptools can automatically include all scripts in a directory
+#paths = ["scripts/*"]
