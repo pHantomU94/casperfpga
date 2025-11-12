@@ -2225,8 +2225,9 @@ class RFDC(object):
     :type ntile: int
     :param nblk: Block index within target converter tile, in the range (0-3)
     :type nblk: int
-    :param converter_type: Represents the target converter type, "adc" or "dac"
-    :type converter_type: str
+    :param converter_type: Represents the target converter type, self.ADC for ADC
+        or anything else for DAC
+    :type converter_type: int
 
     :return: Dictionary with mixer configurations PLL settings, empty dictionary if tile/block is disabled
     :rtype: dict[str, float]
