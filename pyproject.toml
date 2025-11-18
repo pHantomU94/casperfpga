@@ -46,13 +46,11 @@ Download = "https://pypi.org/project/casperfpga"
 packages = [
     "casperfpga",
     "casperfpga.debug",
-    "casperfpga.progska",
 ]
 
 [tool.setuptools.package-dir]
 "casperfpga" = "src"
 "casperfpga.debug" = "debug"
-"casperfpga.progska" = "progska"
 
 [tool.setuptools.package-data]
 casperfpga = ["tengbe_mmap.txt", "tengbe_mmap_legacy.txt", "fortygbe_mmap_legacy.txt"]

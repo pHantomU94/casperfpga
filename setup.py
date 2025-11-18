@@ -73,7 +73,7 @@ setuptools.setup(
     scripts=glob.glob('scripts/*'),
     setup_requires=['katversion'],
     use_katversion=True,
-    ext_modules=[progska_extension],
+    #ext_modules=[progska_extension],
     # Required for PyPI
     keywords='casper ska meerkat fpga',
     classifiers=[
