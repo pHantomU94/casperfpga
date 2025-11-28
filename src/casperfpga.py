@@ -765,7 +765,7 @@ class CasperFpga(object):
                                    - e.g. The SKARAB ADC's PLL SYNC
         :return: <nothing> the information is populated in the class
         """
-        if (filename is None):
+        if (filename is None and fpg_info is None):
             t_filename, t_fpg_info = \
                 self.transport.get_system_information_from_transport()
             filename = t_filename
