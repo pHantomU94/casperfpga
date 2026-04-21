@@ -182,8 +182,11 @@ class CasperFpga(object):
 
         # Store board ID as it may be used to make
         # comms decisions
-        self.platform = PLATFORM_ID.get(self._get_platform_id(), None)
-        self.transport.platform = self.platform
+        # This won't be available yet for a LocalMemTransport
+        if not isinstance(self.transport, LocalMemTransport):
+            if self.is_running():
+                self.platform = PLATFORM_ID.get(self._get_platform_id(), None)
+                self.transport.platform = self.platform
         
     def choose_transport(self, host_ip, port):
         """
