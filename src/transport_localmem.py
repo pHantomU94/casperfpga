@@ -10,7 +10,7 @@ from mmap import mmap, PROT_READ, PROT_WRITE, MAP_SHARED
 
 MEM_DEV = '/dev/mem'
 # Size of AXI-lite memory to map
-MAP_SIZE = 32 * 1024 * 1024 # 8MB
+MAP_SIZE    = 0x20000000 # 512 MiB
 AXIL_OFFSET = 0xA0000000
 
 from .transport import Transport
