@@ -10,8 +10,36 @@ permissions:
   contents: write
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+  build_pure_wheel:
+    name: Build pure wheel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Build pure wheel
+        env:
+          CASPERFPGA_BUILD_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          CASPERFPGA_BUILD_PROGSKA: "0"
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip wheel . --wheel-dir wheelhouse --no-deps
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-pure
+          path: wheelhouse/*.whl
+
+  build_progska_wheels:
+    name: Build progska wheel on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -30,43 +58,17 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
+      - name: Build progska wheel
         env:
           CASPERFPGA_BUILD_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-
-      - name: Upload wheel artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-${{ matrix.os }}
-          path: wheelhouse/*.whl
-
-  build_windows_wheel:
-    name: Build wheel on windows-latest
-    runs-on: windows-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Build Windows wheel
-        env:
-          CASPERFPGA_BUILD_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          CASPERFPGA_BUILD_PROGSKA: "0"
         run: |
           python -m pip install --upgrade pip wheel
-          python -m pip wheel . --wheel-dir wheelhouse --no-deps
+          python -m pip wheel ./packaging/progska --wheel-dir wheelhouse --no-deps
 
-      - name: Upload Windows wheel artifact
+      - name: Upload progska wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-windows-latest
+          name: wheels-progska-${{ matrix.os }}
           path: wheelhouse/*.whl
 
   build_sdist:
@@ -101,8 +103,8 @@ jobs:
     name: Publish GitHub release
     if: github.ref_type == 'tag'
     needs:
-      - build_wheels
-      - build_windows_wheel
+      - build_pure_wheel
+      - build_progska_wheels
       - build_sdist
     runs-on: ubuntu-latest
     steps:

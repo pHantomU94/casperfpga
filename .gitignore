@@ -36,6 +36,7 @@ docs/_build/
 .eggs/
 build/
 casperfpga.egg-info/
+packaging/progska/*.egg-info/
 dist/
 
 # ignore development venv environment files

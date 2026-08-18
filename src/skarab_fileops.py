@@ -250,8 +250,9 @@ def upload_to_ram_progska(filename, fpga_list, chunk_size=1988):
     """
     if progska is None:
         raise ImportError(
-            'casperfpga.progska is unavailable. Build the C extension in-place '
-            'or run Python from an installed environment instead of the repo root.'
+            'casperfpga.progska is unavailable. Install the optional '
+            'casperfpga-progska package for Python 3.10, or build the '
+            'extension from source.'
         )
 
     upload_start_time = time.time()

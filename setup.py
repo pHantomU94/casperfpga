@@ -1,7 +1,8 @@
-import setuptools
 import glob
 import importlib.util
 import os
+
+import setuptools
 
 NAME = 'casperfpga'
 DESCRIPTION = 'Talk to CASPER hardware devices using katcp or dcp. See https://github.com/casper-astro/casperfpga for more.'
@@ -28,7 +29,6 @@ except Exception as exc:
     long_description = DESCRIPTION
 
 
-extra_compile_args = ['-O2', '-Wall']
 data_files = ['tengbe_mmap.txt', 'tengbe_mmap_legacy.txt', 'fortygbe_mmap_legacy.txt']
 
 
@@ -36,7 +36,7 @@ def should_build_progska():
     env_value = os.environ.get('CASPERFPGA_BUILD_PROGSKA')
     if env_value is not None:
         return env_value.lower() not in ('0', 'false', 'no')
-    return os.name != 'nt'
+    return False
 
 
 def get_ext_modules():
@@ -84,12 +84,13 @@ setuptools.setup(
         'crcmod'
     ],
     extras_require = {'test': ['pytest', 'pytest-cov', 'pytest-datadir']},
-    packages=['casperfpga', 'casperfpga.debug', 'casperfpga.progska'],
+    packages=['casperfpga', 'casperfpga.debug'],
     py_modules=['_casperfpga_version'],
-    package_dir={'casperfpga': 'src', 'casperfpga.debug': 'debug', 'casperfpga.progska': 'progska'},
+    package_dir={'casperfpga': 'src', 'casperfpga.debug': 'debug'},
     package_data={'casperfpga': data_files},
     scripts=glob.glob('scripts/*'),
     ext_modules=get_ext_modules(),
+    python_requires='>=3.8',
     # Required for PyPI
     keywords='casper ska meerkat fpga',
     classifiers=[
