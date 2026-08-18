@@ -193,6 +193,10 @@ class CasperFpga(object):
         if host_ip.startswith('CasperDummy'):
             return DummyTransport
         try:
+            # Change the order of the tests
+            if TapcpTransport.test_host_type(host_ip):
+                self.logger.info('%s seems to be a TapcpTransport' % host_ip)
+                return TapcpTransport
             if SkarabTransport.test_host_type(host_ip):
                 self.logger.info('%s seems to be a SKARAB' % host_ip)
                 return SkarabTransport
@@ -203,9 +207,6 @@ class CasperFpga(object):
             elif KatcpTransport.test_host_type(host_ip):
                 self.logger.info('%s seems to be ROACH' % host_ip)
                 return KatcpTransport
-            elif TapcpTransport.test_host_type(host_ip):
-                self.logger.info('%s seems to be a TapcpTransport' % host_ip)
-                return TapcpTransport
             else:
                 errmsg = 'Possible that host does not follow one of the \
                             defined casperfpga transport protocols'
