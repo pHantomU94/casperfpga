@@ -6,6 +6,7 @@ import os
 NAME = 'casperfpga'
 DESCRIPTION = 'Talk to CASPER hardware devices using katcp or dcp. See https://github.com/casper-astro/casperfpga for more.'
 URL = 'https://github.com/casper-astro/casperfpga'
+TFTPY_FORK_URL = 'https://github.com/pHantomU94/tftpy/archive/refs/heads/fix/upload-filelike-cleanup.zip'
 
 AUTHOR  = 'Tyrone van Balla & J&J'
 EMAIL   = 'tvanballa at ska.ac.za'
@@ -76,7 +77,7 @@ setuptools.setup(
         'setuptools',
         'tornado',
         'redis',
-        'tftpy',
+        'tftpy @ ' + TFTPY_FORK_URL,
         'progressbar2',
         'requests',
         'circus',
