@@ -3,7 +3,12 @@ control and monitor fpga-based casper designs.
 """
 
 # import all the main classes that we'll use often
-from . import progska
+try:
+    from . import progska
+except ImportError:
+    # The optional C extension is only required for specific SKARAB upload
+    # paths. Keep the package importable when it has not been built in-place.
+    progska = None
 from .bitfield import Bitfield, Field
 from .katadc import KatAdc
 from .casperfpga import CasperFpga

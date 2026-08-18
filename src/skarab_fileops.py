@@ -4,7 +4,10 @@ import logging
 import time
 import socket
 
-from . import progska
+try:
+    from . import progska
+except ImportError:
+    progska = None
 from . import skarab_definitions as sd
 from .utils import threaded_fpga_operation as thop
 from .network import IpAddress
@@ -245,6 +248,12 @@ def upload_to_ram_progska(filename, fpga_list, chunk_size=1988):
     :param filename: the fpg to upload
     :param fpga_list: a list of the CasperFpga objects
     """
+    if progska is None:
+        raise ImportError(
+            'casperfpga.progska is unavailable. Build the C extension in-place '
+            'or run Python from an installed environment instead of the repo root.'
+        )
+
     upload_start_time = time.time()
     binname = '/tmp/fpgstream_' + str(os.getpid()) + '.bin'
     processor = choose_processor(filename)
