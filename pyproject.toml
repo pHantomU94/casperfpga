@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+build = "cp310-*"
+skip = ["*-musllinux_*"]
+build-verbosity = 1
+
+[tool.cibuildwheel.linux]
+environment = { CASPERFPGA_BUILD_PROGSKA = "1" }
+
+[tool.cibuildwheel.macos]
+environment = { CASPERFPGA_BUILD_PROGSKA = "1" }
+
+[tool.cibuildwheel.windows]
+environment = { CASPERFPGA_BUILD_PROGSKA = "0" }

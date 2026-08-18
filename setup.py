@@ -1,7 +1,8 @@
 import setuptools
 import glob
-import sysconfig
 import os
+
+from _casperfpga_version import get_build_version
 
 NAME = 'casperfpga'
 DESCRIPTION = 'Talk to CASPER hardware devices using katcp or dcp. See https://github.com/casper-astro/casperfpga for more.'
@@ -9,7 +10,7 @@ URL = 'https://github.com/casper-astro/casperfpga'
 
 AUTHOR  = 'Tyrone van Balla & J&J'
 EMAIL   = 'tvanballa at ska.ac.za'
-VERSION = '0.2.0' # Need to adopt the __version__.py format
+VERSION = get_build_version()
 
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -23,24 +24,37 @@ except Exception as exc:
     long_description = DESCRIPTION
 
 
-# extra_compile_args = sysconfig.get_config_var('CFLAGS').split()
 extra_compile_args = ['-O2', '-Wall']
-progska_extension = setuptools.Extension(
-    'casperfpga.progska',
-    # sources=['progska/_progska.c', 'progska/progska.c', 'progska/th.c',
-    #         'progska/netc.c', 'progska/netc.h'],
-    sources=['progska/_progska.c', 'progska/progska.c', 'progska/th.c',
-            'progska/netc.c'],
-    include_dirs=['progska'],
-    language='c',
-    # extra_compile_args=extra_compile_args,
-    # extra_link_args=['-static'],
-)
-
 data_files = ['tengbe_mmap.txt', 'tengbe_mmap_legacy.txt', 'fortygbe_mmap_legacy.txt']
+
+
+def should_build_progska():
+    env_value = os.environ.get('CASPERFPGA_BUILD_PROGSKA')
+    if env_value is not None:
+        return env_value.lower() not in ('0', 'false', 'no')
+    return os.name != 'nt'
+
+
+def get_ext_modules():
+    if not should_build_progska():
+        return []
+    return [
+        setuptools.Extension(
+            'casperfpga.progska',
+            sources=[
+                'progska/_progska.c',
+                'progska/progska.c',
+                'progska/th.c',
+                'progska/netc.c',
+            ],
+            include_dirs=['progska'],
+            language='c',
+        )
+    ]
 
 setuptools.setup(
     name=NAME,
+    version=VERSION,
     description=DESCRIPTION,
     author=AUTHOR,
     author_email=EMAIL,
@@ -55,7 +69,6 @@ setuptools.setup(
         'future',
         'numpy',
         'katcp>=0.9.3',
-        'katversion',
         'odict',
         'setuptools',
         'tornado',
@@ -68,12 +81,11 @@ setuptools.setup(
     ],
     extras_require = {'test': ['pytest', 'pytest-cov', 'pytest-datadir']},
     packages=['casperfpga', 'casperfpga.debug', 'casperfpga.progska'],
+    py_modules=['_casperfpga_version'],
     package_dir={'casperfpga': 'src', 'casperfpga.debug': 'debug', 'casperfpga.progska': 'progska'},
     package_data={'casperfpga': data_files},
     scripts=glob.glob('scripts/*'),
-    setup_requires=['katversion'],
-    use_katversion=True,
-    ext_modules=[progska_extension],
+    ext_modules=get_ext_modules(),
     # Required for PyPI
     keywords='casper ska meerkat fpga',
     classifiers=[
