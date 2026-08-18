@@ -40,3 +40,8 @@ dist/
 
 # ignore development venv environment files
 .venv
+
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml

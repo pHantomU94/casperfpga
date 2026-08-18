@@ -2822,10 +2822,10 @@ class SkarabTransport(Transport):
 
         # hmc addresses are 24/32bit, pack them as 4 Bytes (32 bits)
         unpacked_addr = struct.unpack('!4B', struct.pack('!I', write_address))
-        write_address = ''.join([struct.pack('!H', x) for x in unpacked_addr])
+        write_address = b''.join([struct.pack('!H', x) for x in unpacked_addr])
 
         unpacked_data = struct.unpack('!4B', struct.pack('!I', write_data))
-        write_data = ''.join([struct.pack('!H', x) for x in unpacked_data])
+        write_data = b''.join([struct.pack('!H', x) for x in unpacked_data])
 
         request = sd.WriteHMCI2CReq(interface, slave_address, write_address, write_data)
         response = self.send_packet(request, timeout=timeout, retries=retries)
@@ -2863,7 +2863,7 @@ class SkarabTransport(Transport):
         # handle read address (pack it as 4 16-bit words)
         # TODO: handle this in the createPayload method
         unpacked = struct.unpack('!4B', struct.pack('!I', read_address))
-        read_address = ''.join([struct.pack('!H', x) for x in unpacked])
+        read_address = b''.join([struct.pack('!H', x) for x in unpacked])
         request = sd.ReadHMCI2CReq(interface, slave_address, read_address)
         response = self.send_packet(request, timeout=timeout, retries=retries)
         if response is None:

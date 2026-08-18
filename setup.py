@@ -7,7 +7,7 @@ NAME = 'casperfpga'
 DESCRIPTION = 'Talk to CASPER hardware devices using katcp or dcp. See https://github.com/casper-astro/casperfpga for more.'
 URL = 'https://github.com/casper-astro/casperfpga'
 
-AUTHOR  = 'Tyrone van Balla'
+AUTHOR  = 'Tyrone van Balla & J&J'
 EMAIL   = 'tvanballa at ska.ac.za'
 VERSION = '0.2.0' # Need to adopt the __version__.py format
 
@@ -66,7 +66,7 @@ setuptools.setup(
         'circus',
         'crcmod'
     ],
-    extras_require = {'test': ['pytest', 'pytest-datadir']},
+    extras_require = {'test': ['pytest', 'pytest-cov', 'pytest-datadir']},
     packages=['casperfpga', 'casperfpga.debug', 'casperfpga.progska'],
     package_dir={'casperfpga': 'src', 'casperfpga.debug': 'debug', 'casperfpga.progska': 'progska'},
     package_data={'casperfpga': data_files},
