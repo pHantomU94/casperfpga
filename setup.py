@@ -1,8 +1,7 @@
 import setuptools
 import glob
+import importlib.util
 import os
-
-from _casperfpga_version import get_build_version
 
 NAME = 'casperfpga'
 DESCRIPTION = 'Talk to CASPER hardware devices using katcp or dcp. See https://github.com/casper-astro/casperfpga for more.'
@@ -10,10 +9,14 @@ URL = 'https://github.com/casper-astro/casperfpga'
 
 AUTHOR  = 'Tyrone van Balla & J&J'
 EMAIL   = 'tvanballa at ska.ac.za'
-VERSION = get_build_version()
-
-
 here = os.path.abspath(os.path.dirname(__file__))
+
+version_module_path = os.path.join(here, '_casperfpga_version.py')
+version_spec = importlib.util.spec_from_file_location('_casperfpga_version', version_module_path)
+version_module = importlib.util.module_from_spec(version_spec)
+version_spec.loader.exec_module(version_module)
+get_build_version = version_module.get_build_version
+VERSION = get_build_version()
 
 try:
     with open(os.path.join(here, 'README.md')) as readme:
