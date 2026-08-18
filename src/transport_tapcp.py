@@ -105,8 +105,8 @@ class TapcpTransport(Transport):
 
         new_connection_msg = '*** NEW CONNECTION MADE TO {} ***'.format(self.host)
         self.logger.info(new_connection_msg)
-        self.timeout = kwargs.get('timeout', 3)
-        self.server_timeout = 0.1 # Microblaze timeout period. So that if a command fails we can wait for the microblaze to terminate the connection before retrying
+        self.timeout = kwargs.get('timeout', 0.5)
+        self.server_timeout = 0.5 # Microblaze timeout period. So that if a command fails we can wait for the microblaze to terminate the connection before retrying
         self.retries = kwargs.get('retries', 8) # These are retries of a complete transaction (each of which has it's ofw TFTP retries).
         self.platform = None # User (CasperFpga?) to update this
 
