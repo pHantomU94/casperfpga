@@ -37,3 +37,6 @@ docs/_build/
 build/
 casperfpga.egg-info/
 dist/
+
+# ignore development venv environment files
+.venv
