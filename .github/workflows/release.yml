@@ -99,6 +99,50 @@ jobs:
           name: sdist
           path: dist/*.tar.gz
 
+  build_offline_bundle:
+    name: Build offline bundle
+    needs:
+      - build_pure_wheel
+      - build_progska_wheels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: offline-artifacts
+          merge-multiple: true
+
+      - name: Download tftpy wheel
+        run: |
+          mkdir -p offline-artifacts
+          curl -L \
+            https://github.com/pHantomU94/tftpy/releases/download/v0.8.7.post1/tftpy-0.8.7.post1-py3-none-any.whl \
+            -o offline-artifacts/tftpy-0.8.7.post1-py3-none-any.whl
+
+      - name: Assemble offline bundle
+        env:
+          RELEASE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+        run: |
+          bundle_root="casperfpga-offline-${RELEASE_VERSION}"
+          mkdir -p "${bundle_root}/wheelhouse"
+          cp offline-artifacts/*.whl "${bundle_root}/wheelhouse/"
+          cp packaging/offline/install_offline.sh "${bundle_root}/"
+          cp packaging/offline/README-offline.md "${bundle_root}/"
+          chmod +x "${bundle_root}/install_offline.sh"
+          tar -czf "${bundle_root}.tar.gz" "${bundle_root}"
+
+      - name: Upload offline bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-bundle
+          path: casperfpga-offline-*.tar.gz
+
   release:
     name: Publish GitHub release
     if: github.ref_type == 'tag'
@@ -106,6 +150,7 @@ jobs:
       - build_pure_wheel
       - build_progska_wheels
       - build_sdist
+      - build_offline_bundle
     runs-on: ubuntu-latest
     steps:
       - name: Download wheel artifacts
@@ -119,6 +164,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: sdist
+          path: dist
+
+      - name: Download offline bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: offline-bundle
           path: dist
 
       - name: Create GitHub release
