@@ -11,14 +11,17 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 WHEELHOUSE="$SCRIPT_DIR/wheelhouse"
 
 CASPER_WHEEL=$(find "$WHEELHOUSE" -maxdepth 1 -name 'casperfpga-*.whl' | head -n 1)
-TFTPY_WHEEL=$(find "$WHEELHOUSE" -maxdepth 1 -name 'tftpy-*.whl' | head -n 1)
+DEPENDENCY_WHEELS=$(find "$WHEELHOUSE" -maxdepth 1 -name '*.whl' \
+  ! -name 'casperfpga-*.whl' \
+  ! -name 'casperfpga_progska-*.whl' | sort)
 
-if [ -z "${CASPER_WHEEL}" ] || [ -z "${TFTPY_WHEEL}" ]; then
+if [ -z "${CASPER_WHEEL}" ] || [ -z "${DEPENDENCY_WHEELS}" ]; then
   echo "Required wheels are missing from $WHEELHOUSE" >&2
   exit 1
 fi
 
-python -m pip install --no-index --find-links "$WHEELHOUSE" "$TFTPY_WHEEL"
+set -- $DEPENDENCY_WHEELS
+python -m pip install --no-index --find-links "$WHEELHOUSE" "$@"
 python -m pip install --no-index --find-links "$WHEELHOUSE" --no-deps "$CASPER_WHEEL"
 
 if [ "$WITH_PROGSKA" -eq 1 ]; then

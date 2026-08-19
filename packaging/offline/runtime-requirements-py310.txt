@@ -1,0 +1,12 @@
+IPython
+future
+numpy
+katcp>=0.9.3
+odict
+setuptools
+tornado
+redis
+progressbar2
+requests
+circus
+crcmod

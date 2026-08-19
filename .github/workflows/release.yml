@@ -100,23 +100,43 @@ jobs:
           path: dist/*.tar.gz
 
   build_offline_bundle:
-    name: Build offline bundle
+    name: Build offline bundle on ${{ matrix.os }}
     needs:
       - build_pure_wheel
       - build_progska_wheels
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            bundle_suffix: linux-x86_64-py310
+            progska_artifact: wheels-progska-ubuntu-latest
+          - os: macos-13
+            bundle_suffix: macos-arm64-py310
+            progska_artifact: wheels-progska-macos-13
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download wheel artifacts
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Download pure wheel artifact
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-*
+          name: wheels-pure
           path: offline-artifacts
-          merge-multiple: true
+
+      - name: Download progska wheel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.progska_artifact }}
+          path: offline-artifacts
 
       - name: Download tftpy wheel
         run: |
@@ -125,11 +145,18 @@ jobs:
             https://github.com/pHantomU94/tftpy/releases/download/v0.8.7.post1/tftpy-0.8.7.post1-py3-none-any.whl \
             -o offline-artifacts/tftpy-0.8.7.post1-py3-none-any.whl
 
+      - name: Build runtime dependency wheelhouse
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip wheel \
+            -r packaging/offline/runtime-requirements-py310.txt \
+            --wheel-dir offline-artifacts
+
       - name: Assemble offline bundle
         env:
           RELEASE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
         run: |
-          bundle_root="casperfpga-offline-${RELEASE_VERSION}"
+          bundle_root="casperfpga-offline-${{ matrix.bundle_suffix }}-${RELEASE_VERSION}"
           mkdir -p "${bundle_root}/wheelhouse"
           cp offline-artifacts/*.whl "${bundle_root}/wheelhouse/"
           cp packaging/offline/install_offline.sh "${bundle_root}/"
@@ -140,7 +167,7 @@ jobs:
       - name: Upload offline bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: offline-bundle
+          name: offline-bundle-${{ matrix.bundle_suffix }}
           path: casperfpga-offline-*.tar.gz
 
   release:
@@ -166,11 +193,12 @@ jobs:
           name: sdist
           path: dist
 
-      - name: Download offline bundle artifact
+      - name: Download offline bundle artifacts
         uses: actions/download-artifact@v4
         with:
-          name: offline-bundle
+          pattern: offline-bundle-*
           path: dist
+          merge-multiple: true
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
