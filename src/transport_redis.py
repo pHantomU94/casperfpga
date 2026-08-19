@@ -3,7 +3,6 @@ import struct
 import time
 import redis
 import json
-import tftpy
 import base64
 from numpy import random
 from io import StringIO
@@ -12,6 +11,7 @@ from queue import Queue
 from threading import Thread
 
 from .transport_tapcp import TapcpTransport
+from ._vendor import tftpy
 
 __author__ = 'jackh'
 __date__ = 'May 2019'

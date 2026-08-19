@@ -1,0 +1,9 @@
+Vendored from:
+https://github.com/pHantomU94/tftpy/releases/tag/v0.8.7.post1
+
+Original package:
+tftpy 0.8.7.post1
+
+Local adaptation:
+- relocated under `casperfpga._vendor.tftpy`
+- no functional source changes beyond packaging namespace use

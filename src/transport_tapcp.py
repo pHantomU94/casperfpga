@@ -8,6 +8,7 @@ import progressbar
 
 from .transport import Transport
 from .utils import parse_fpg
+from ._vendor import tftpy
 
 __author__ = 'jackh'
 __date__ = 'June 2017'
@@ -21,7 +22,7 @@ FLASH_SECTOR_SIZE = 0x10000
 def set_tftpy_log_level(level):
     logger_names = [
         'tftpy.TftpClient',
-        'tftpy.TftpContext',
+        'tftpy.TftpContexts',
         'tftpy.TftpPacketFactory',
         'tftpy.TftpPacketTypes',
         'tftpy.TftpServer',
@@ -85,14 +86,7 @@ class TapcpTransport(Transport):
 
         :param host: IP Address of the targeted Board
         """
-        try:
-            import tftpy
-            global TFTPY
-            TFTPY = tftpy
-            set_tftpy_log_level(logging.CRITICAL)
-        except ImportError:
-            raise ImportError('You need to install tftpy to use TapcpTransport')
-        
+        set_tftpy_log_level(logging.CRITICAL)
         Transport.__init__(self, **kwargs)
         self.t = tftpy.TftpClient(kwargs['host'], 69)
 	    
@@ -125,9 +119,7 @@ class TapcpTransport(Transport):
         """
         try:
             board = TapcpTransport(host=host_ip, timeout=0.1)
-        except ImportError:
-            self.logger.error('tftpy is not installed, do not know if %s is a Tapcp'
-                         'client or not' % str(host_ip))
+        except Exception:
             return False
         # Temporarily turn off logging so if tftp doesn't respond
         # there's no error. Remember the existing log level so that
@@ -149,7 +141,6 @@ class TapcpTransport(Transport):
         :param host_ip:
         """
         try:
-            import tftpy
             board = tftpy.TftpClient(host_ip, 69)
             buf = BytesIO()
             board.download('%s.%x.%x' % ('sys_clkcounter', 0, 1),

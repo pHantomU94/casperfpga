@@ -5,7 +5,7 @@ GitHub during installation.
 
 Contents:
 
-- `wheelhouse/`: local wheel files for `casperfpga`, `tftpy`, the optional
+- `wheelhouse/`: local wheel files for `casperfpga`, the optional
   `casperfpga-progska` extension, and the full runtime dependency set required
   by `casperfpga`
 - `install_offline.sh`: installs from the local wheelhouse without contacting

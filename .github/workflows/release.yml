@@ -138,13 +138,6 @@ jobs:
           name: ${{ matrix.progska_artifact }}
           path: offline-artifacts
 
-      - name: Download tftpy wheel
-        run: |
-          mkdir -p offline-artifacts
-          curl -L \
-            https://github.com/pHantomU94/tftpy/releases/download/v0.8.7.post1/tftpy-0.8.7.post1-py3-none-any.whl \
-            -o offline-artifacts/tftpy-0.8.7.post1-py3-none-any.whl
-
       - name: Build runtime dependency wheelhouse
         run: |
           python -m pip install --upgrade pip wheel
