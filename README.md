@@ -1,153 +1,201 @@
-# casperfpga #
+# casperfpga (Python 3 维护版)
 
-`casperfpga` is a python library used to interact and interface with [**CASPER** Hardware](https://github.com/casper-astro/casper-hardware). Functionality includes being able to reconfigure firmware, as well as read and write registers across the various communication interfaces.
+> **Language / 语言**
+> - [English](#english)
+> - [中文](#中文)
 
-This README will outline, and make reference to, the following:
-1. Notes to Users
-    1. [New Users](#new-users)
-    2. [Existing Users](#existing-users)
+---
+
+<!-- ==================== English ==================== -->
+
+<a id="english"></a>
+
+# English
+
+`casperfpga` is a Python library used to interact with and interface with [**CASPER** Hardware](https://github.com/casper-astro/casper-hardware). This repository is a **Python 3 maintenance fork** of the original [casper-astro/casperfpga](https://github.com/casper-astro/casperfpga), focused on keeping the library compatible with modern Python 3 environments.
+
+> The original README is preserved in [README_BACKUP.md](README_BACKUP.md).
+
+## Table of Contents
+
+1. [Version Design Notes](#version-design-notes)
 2. [Installation](#installation)
-3. [Usage](#usage)
-    1. [Getting Started](https://casper.berkeley.edu/index.php/getting-started/)
-    2. [Methods and Utilities](https://casperfpga.readthedocs.io/en/latest/)
-4. [Contributing](#contributing)
+3. [Compatibility Testing](#compatibility-testing)
 
+---
 
-## Notes to casperfpga users ##
+<a id="version-design-notes"></a>
 
-### New Users ###
+### Version Design Notes
 
-Not much to say to new users except welcome! It goes without saying that once you have cloned this respository you should make sure you're on the correct branch (usually **master**, unless you're a contributor) and always pull regularly. This, to make sure you have the latest version of casperfpga with the latest features. You can move on straight to [Installation](#installation).
+This repository is dedicated to maintaining a **Python 3 version** of `casperfpga`.
 
-Should you be an existing `corr` user, wondering where some of your functionality has gone when interfacing to your ROACH/2, please [look here](https://casper-toolflow.readthedocs.io/projects/casperfpga/en/latest/migrating_from_corr.html) for a detailed explanation on **how to migrate to `casperfpga`**.
+- **Vendored tftpy (based on v0.8.7).** The library includes a vendored copy of [tftpy](https://github.com/pHantomU94/tftpy/releases/tag/v0.8.7.post1) located under [`casperfpga/_vendor/tftpy/`](casperfpga/_vendor/tftpy/) (source tree: [`src/_vendor/tftpy/`](src/_vendor/tftpy/)). This vendored version fixes several design issues present in the official tftpy library, including logger hierarchy leakage and packaging namespace problems. See the `VENDORED_FROM.txt` in that directory for details:
 
-### Existing Users ###
+  ```text
+  Vendored from:
+  https://github.com/pHantomU94/tftpy/releases/tag/v0.8.7.post1
 
-From commit [`a5e7dcc`](https://github.com/ska-sa/casperfpga/tree/a5e7dcc05d4b0234d05e808fc6b8ab91485b8051) and earlier the method of instantiating e.g. a SKARAB object was as follows:
+  Original package:
+  tftpy 0.8.7.post1
+
+  Local adaptation:
+  - relocated under `casperfpga._vendor.tftpy`
+  - no functional source changes beyond packaging namespace use
+  ```
+
+- **progska.** The SKARAB programming utility `progska` is built as an optional extension package and shipped as a compiled extension (e.g., [`progska.cpython-310-darwin.so`](casperfpga/progska.cpython-310-darwin.so)).
+
+---
+
+<a id="installation"></a>
+
+### Installation
+
+The simplest way to install is to **download the pre-built `.whl` file** from the [GitHub Releases](https://github.com/pHantomU94/casperfpga/releases) page, then install it into your Python environment or virtual environment using `pip`.
+
+**Step 1 — Download the wheel file**
+
+Go to the [Releases](https://github.com/pHantomU94/casperfpga/releases) page of this repository, locate the release version you want (e.g., `v0.4.9`), and download the corresponding `.whl` file from the release assets (e.g., `casperfpga-0.4.9-py3-none-any.whl`).
+
+**Step 2 — (Optional) Create and activate a virtual environment**
+
+```bash
+# Create a virtual environment (replace with your Python version if needed)
+python3 -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate   # Linux / macOS
+# .venv\Scripts\activate    # Windows
+```
+
+**Step 3 — Install the wheel file with pip**
+
+```bash
+# Replace the file name with the actual wheel file you downloaded
+pip install dist/casperfpga-<version>-py3-none-any.whl
+
+# Example:
+# pip install dist/casperfpga-0.4.9-py3-none-any.whl
+```
+
+**Step 4 — Verify the installation**
 
 ```python
-In [1]: import casperfpga
-In [2]: skarab = casperfpga.SkarabFpga('skarab010103')
-In [3]: roach = casperfpga.katcp_fpga.KatcpFpga('roach020203')
-```
-
-As of commit [`4adffc0`](https://github.com/ska-sa/casperfpga/commit/4adffc0994c56c38dafe6a395d3ed94e8e9477cc) the method of instantiating a ROACH or SKARAB was altered to be done intelligently. `casperfpga` automatically works out whether the hostname given in its instantiation is a ROACH, SKARAB or SNAP board.
-
-```python
-In [1]: import casperfpga
-In [2]: skarab = casperfpga.CasperFpga('skarab010103')
-DEBUG:root:skarab010103 seems to be a SKARAB
-INFO:casperfpga.transport_skarab:skarab010103: port(30584) created & connected.
-DEBUG:root:casperfpga.casperfpga:skarab010103: now a CasperFpga
-In [3]: roach = casperfpga.CasperFpga('roach020203')
-DEBUG:root:roach020203 seems to be a ROACH
-INFO:casperfpga.transport_katcp:roach020203: port(7147) created and connected.
-DEBUG:root:casperfpga.casperfpga:roach020203: now a CasperFpga
-```
-
-### Alveo Support ###
-Currently, support for the Alveo exists in a separate [`branch`](https://github.com/ska-sa/casperfpga/tree/alveo). It
-relies on the [`alveo-sw`](https://github.com/ska-sa/alveo-sw) infrastructure being installed on the server hosting the
-Alveo cards.
-
-Once installed, a connection can be established to the Alveo as follows:
-
-```python
-In [1]: import casperfpga
-
-In [2]: casperfpga.utils.list_alveos("10.8.96.150")
-Out[2]:
-{'alveo_0_u50': {'host': '10.8.96.150',
- 'port': 7150,
- 'proto': 'katcp',
- 'serial': '501211207V5X'}}
-
-In [3]: alveo = casperfpga.CasperFpga('10.8.96.150', port=7150);
-
-```
-
-The Alveo can now be programmed with an appropriate Alveo-compatible fpg:
-
-```python
-alveo.transport.upload_to_ram_and_program('my_fpg_file.fpg')
-```
-
-List of some useful commands in the Alveo transport layer:
-
-```python
-alveo.transport.memread
-alveo.transport.memwrite
-alveo.transport.listbof
-alveo.transport.listdev
-alveo.transport.wordread
-alveo.transport.wordwrite
-alveo.transport.get_sensor_data
-```
-
-## Installation ##
-[`casperfpga`](https://pypi.org/project/casperfpga/) is now available on the Python Package Index (PyPI) and can be installed via [`pip`](https://pip.pypa.io/en/stable/). However, should you need to interface with a SNAP board, your installation workflow involves the extra step of installing against `casperfpga's requirements.txt`.
-
-```shell
-$ git clone https://github.com/casper-astro/casperfpga
-$ cd casperfpga/
-$ git checkout master
-$ sudo apt-get install python-pip
-$ sudo pip install -r requirements.txt
-$ sudo pip install .
-```
-
-The distribution on the Python Package Index is, of course, a built-distribution; this contains an already-compiled version of the SKARAB programming utility `progska`, written in `C`. Operating Systems tested using `pip install casperfpga` include:
-
-1. Ubuntu 14.04 LTS
-2. Ubuntu 16.04 LTS
-3. Ubuntu 18.04 LTS
-4. Debian 8.x
-
-Unfortunately the success of your installation using `pip` depends on the host OS of the installation, and you might need to rebuild the utility using the C-compiler native to your OS. In short, follow the more traditional method of installing custom Python packages.
-
-```shell
-# remove current casperfpga install files
-$ cd /usr/local/lib/python2.7/dist-packages
-$ sudo rm -rf casper*
-
-# clone the repository to your working directory
-$ cd /path/to/working/directory
-$ git clone https://github.com/casper-astro/casperfpga.git
-$ cd casperfpga
-$ git checkout master
-$ sudo pip install -r requirements.txt
-$ sudo python setup.py install
-```
-
-To check that casperfpga has been installed correctly open an ipython session and import casperfpga. To avoid errors, move out of your cloned casperfpga repository directory before doing this test. `casperfpga.__version__` will output the build and githash version of your casperfpga library.
-
-```shell
 $ ipython
-```
-```python
 In [1]: import casperfpga
 In [2]: casperfpga.__version__
 ```
 
-If you receive any errors after this please feel free to contact anyone on the [CASPER Mailing List](mailto:casper@lists.berkeley.edu), or check the [Mailing List Archive](http://www.mail-archive.com/casper@lists.berkeley.edu/) to see if your issue has been resolved already.
+---
 
-## Usage ##
-The introductory [tutorials](https://github.com/casper-astro/tutorials_devel) for ROACH/2, SKARAB and SNAP serve as a guide to the entire process of:
-* Creating an FPGA design in Simulink using the CASPER and Xilinx Blocksets
-* Building the design using the toolflow, and lastly
-* Reconfiguring your CASPER Hardware with the generated .fpg file using `casperfpga`
+<a id="compatibility-testing"></a>
 
-`casperfpga` is written in python and mainly used to communicate with CASPER Hardware and reconfigure it's firmware. Hence the medium of communication is usually done through an ipython session, as shown below:
+### Compatibility Testing
 
-```python
-import casperfpga
-fpga = casperfpga.CasperFpga('skarab_host or roach_name')
-fpga.upload_to_ram_and_program('your_file.fpg')
+This fork has been tested and confirmed to work with:
+
+| Python Version | Status |
+| :------------: | :----: |
+| 3.8            | ✅     |
+| 3.10           | ✅     |
+
+If you encounter issues with other Python versions, please [open an issue](https://github.com/pHantomU94/casperfpga/issues).
+
+---
+
+<!-- ==================== 中文 ==================== -->
+
+<a id="中文"></a>
+
+# 中文
+
+`casperfpga` 是一个用于与 [**CASPER** 硬件](https://github.com/casper-astro/casper-hardware)交互的 Python 库。本仓库是原始 [casper-astro/casperfpga](https://github.com/casper-astro/casperfpga) 的 **Python 3 维护分支**，专注于保持该库在现代 Python 3 环境中的兼容性。
+
+> 原 README 内容已备份到 [README_BACKUP.md](README_BACKUP.md)。
+
+## 目录
+
+1. [版本设计说明](#版本设计说明)
+2. [安装方式](#安装方式)
+3. [兼容性测试](#兼容性测试)
+
+---
+
+<a id="版本设计说明"></a>
+
+### 版本设计说明
+
+本仓库专门用于维护 **Python 3 版本** 的 `casperfpga`。
+
+- **内置 tftpy（基于 v0.8.7）。** 本库包含一份 [tftpy](https://github.com/pHantomU94/tftpy/releases/tag/v0.8.7.post1) 的 vendored 副本，位于 [`casperfpga/_vendor/tftpy/`](casperfpga/_vendor/tftpy/)（源码树：[`src/_vendor/tftpy/`](src/_vendor/tftpy/)）。该 vendored 版本修复了官方 tftpy 库中的若干设计问题，包括 logger 层级泄露和包命名空间问题。详情见该目录下的 `VENDORED_FROM.txt`：
+
+  ```text
+  Vendored from:
+  https://github.com/pHantomU94/tftpy/releases/tag/v0.8.7.post1
+
+  Original package:
+  tftpy 0.8.7.post1
+
+  Local adaptation:
+  - relocated under `casperfpga._vendor.tftpy`
+  - no functional source changes beyond packaging namespace use
+  ```
+
+- **progska。** SKARAB 编程工具 `progska` 作为可选扩展包构建，以编译扩展形式提供（如 [`progska.cpython-310-darwin.so`](casperfpga/progska.cpython-310-darwin.so)）。
+
+---
+
+<a id="安装方式"></a>
+
+### 安装方式
+
+最简单的安装方式是 **从 [GitHub Releases](https://github.com/pHantomU94/casperfpga/releases) 页面下载预构建的 `.whl` 文件**，然后在对应的 Python 环境或虚拟环境中使用 `pip` 安装。
+
+**第一步 — 下载 wheel 文件**
+
+进入本仓库的 [Releases](https://github.com/pHantomU94/casperfpga/releases) 页面，找到你需要的发布版本（如 `v0.4.9`），下载该版本下对应的 `.whl` 文件（如 `casperfpga-0.4.9-py3-none-any.whl`）。
+
+**第二步 —（可选）创建并激活虚拟环境**
+
+```bash
+# 创建虚拟环境（如需指定 Python 版本请自行替换）
+python3 -m venv .venv
+
+# 激活虚拟环境
+source .venv/bin/activate   # Linux / macOS
+# .venv\Scripts\activate    # Windows
 ```
 
-## Contributing ##
+**第三步 — 使用 pip 安装 wheel 文件**
 
-Fork [this](https://github.com/casper-astro/casperfpga) repo, add your changes and issue a pull request.
+```bash
+# 将文件名替换为你实际下载的 wheel 文件名
+pip install dist/casperfpga-<version>-py3-none-any.whl
 
-## More documentation ##
-A link to `casperfpga` documentation on Read the Docs can be found [here](https://casper-toolflow.readthedocs.io/projects/casperfpga/en/latest/). The documentation there includes the information above, casperfpga sourcecode and links to other CASPER related documentation that may be of interest to users/contributers. 
+# 示例：
+# pip install dist/casperfpga-0.4.9-py3-none-any.whl
+```
+
+**第四步 — 验证安装**
+
+```python
+$ ipython
+In [1]: import casperfpga
+In [2]: casperfpga.__version__
+```
+
+---
+
+<a id="兼容性测试"></a>
+
+### 兼容性测试
+
+本分支已测试并确认支持以下 Python 版本：
+
+| Python 版本 | 状态 |
+| :---------: | :--: |
+| 3.8         | ✅   |
+| 3.10        | ✅   |
+
+如果在其他 Python 版本上遇到问题，请[提交 Issue](https://github.com/pHantomU94/casperfpga/issues)。
