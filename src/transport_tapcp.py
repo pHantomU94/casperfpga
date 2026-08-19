@@ -20,17 +20,7 @@ FLASH_SECTOR_SIZE = 0x10000
 
 
 def set_tftpy_log_level(level):
-    logger_names = [
-        'tftpy.TftpClient',
-        'tftpy.TftpContexts',
-        'tftpy.TftpPacketFactory',
-        'tftpy.TftpPacketTypes',
-        'tftpy.TftpServer',
-        'tftpy.TftpStates',
-    ]
-    for logger_name in logger_names:
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(level)
+    logging.getLogger('tftpy').setLevel(level)
 
 
 def get_core_info_payload(payload_str):
